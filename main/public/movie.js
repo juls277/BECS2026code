@@ -24,8 +24,6 @@ function updateSessionOnLoad(movieId) {
 }
 
 
-//updateSessionOnLoad(movieId);
-
 
 
 fetch(`/movies/${movieId}`)
@@ -35,12 +33,20 @@ fetch(`/movies/${movieId}`)
      const genreNames = movie.genres.length
       ? movie.genres.map(g => g.name).join(", ")
       : "N/A";
+    const langNames = movie.languages.length
+      ? movie.languages.map(g => g.name).join(", ")
+      : "N/A";
+    const compNames = movie.company.length
+      ? movie.company.map(g => g.name).join(", ")
+      : "N/A";
 
     document.getElementById('movie-title').textContent = movie.title || 'Untitled';
     document.getElementById('movie-genres').textContent = `Genres: ${genreNames}`;
     document.getElementById('movie-id').textContent = `Movie ID: ${movie.id}`;
-    document.getElementById('movie-overview').textContent = movie.overview || 'No description available';
+    document.getElementById('movie-overview').textContent = `${movie.description || 'No description available'}` ;
     document.getElementById('movie-release').textContent = `Release Date: ${movie.release_date || 'Unknown'}`;
+    document.getElementById('languages').textContent = `Languages: ${langNames || 'Unknown'}`;
+    document.getElementById('movie-company').textContent = `Production Company: ${compNames || 'Unknown'}`;
 
     
   })
@@ -58,6 +64,8 @@ fetch(`/movies/${movieId}`)
      
    
     getMovies();
+
+   
  
     
     });
@@ -103,10 +111,9 @@ fetch(`/movies/${movieId}`)
     */
    const unWatchedMovies = allMovies.filter(m => !watchedIds.includes(String(m.id || m.movieId)));
    const movieMap = new Map(
-  allMovies.map(m => [String(m.id || m.movieId), m])
+   allMovies.map(m => [String(m.id || m.movieId), m])
    );
-  const watchedMovies = watchedIds
-  .map(id => movieMap.get(id));
+  const watchedMovies = watchedIds.map(id => movieMap.get(id));
 
   console.log("Watched:", watchedMovies.slice(-5));
    
@@ -124,6 +131,8 @@ fetch(`/movies/${movieId}`)
   console.log(
     `${i + 1}. ${rec.movie.title} — Genres: [${genreNames}] — Similarity: ${rec.score.toFixed(2)}`
   );
+
+ renderRecommendations(topRecommendations);
 });
    
 
@@ -141,6 +150,23 @@ fetch(`/movies/${movieId}`)
   }
 
  }
+ function renderRecommendations(recs) {
+  const list = document.getElementById("movie-links");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  recs.slice(0, 5).forEach(rec => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+
+    a.textContent = rec.movie.title;
+    a.href = `movie.html?id=${rec.movie.id}`;
+
+    li.appendChild(a);
+    list.appendChild(li);
+  });
+}
 
  function genreSimilarity(movieA, movieB) {
   const genresA = movieA.genres.map(g => g.name.toLowerCase());

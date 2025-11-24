@@ -5,6 +5,16 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 const PORT = 3000;
 
+function parseListField(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+
+  try {
+    return JSON.parse(String(raw).replace(/'/g, '"'));
+  } catch (e) {
+    return [];
+  }
+}
 // Load movies from JSON file
 let movies = [];
 
@@ -16,52 +26,32 @@ fs.readFile('./movies.json', 'utf8', (err, data) => {
   movies = JSON.parse(data);
   const rawMovies = JSON.parse(data);
 
-  /* Clean poster paths 
   movies = rawMovies.map(movie => {
-    if (typeof movie.poster_path === 'string') {
-      movie.poster_path = movie.poster_path.replace(/\\/g, '');
-    }
-    return movie;
-  });*/
+    return {
+      
+      movieId: String(movie.movieId || movie.id),
+      release_date: String(movie.release_date),
+      title: movie.title,
+      genres: parseListField(movie.genres),
+      spoken_languages: parseListField(movie.spoken_languages),
+      production_companies: parseListField(movie.production_companies),
+      
+    };
+  });
 });
 
 // Endpoint: GET /movies — list all movies
 app.get('/movies', (req, res) => {
   const response = movies.map(movie => {
-    let parsedGenres = [];
-    let spokenLanguages = [];
-    let prodCompany = [];
-
-    try {
-      
-      parsedGenres = JSON.parse(
-        movie.genres
-          .replace(/'/g, '"') // replace single quotes with double quotes so JSON.parse works
-      );
-      spokenLanguages = JSON.parse(
-        movie.spoken_languages
-          .replace(/'/g, '"')
-
-
-      );
-      prodCompany = JSON.parse(
-        movie.production_companies
-          .replace(/'/g, '"')
-
-
-      );
-    } catch (err) {
-      parsedGenres = [];
-      spokenLanguages = [];
-      prodCompany = [];
-    }
+   
+   
 
     return {
       id: String(movie.movieId || movie.id),
       title: movie.title,
-      genres: parsedGenres,
-      languages: spokenLanguages, 
-      company: prodCompany, 
+      genres: movie.genres,
+      languages: movie.spoken_languages, 
+      company: movie.production_companies, 
       release_date: movie.release_date, 
       _links: {
         self: { href: `/movies/${movie.movieId || movie.id}` }
@@ -80,41 +70,14 @@ app.get('/movies/:id', (req, res) => {
   if (!movie) return res.status(404).json({ error: 'Movie not found' });
 
  
-    let parsedGenres = [];
-    let spokenLanguages = [];
-    let prodCompany = [];
-
-    try {
-      
-      parsedGenres = JSON.parse(
-        movie.genres
-          .replace(/'/g, '"') // replace single quotes with double quotes so JSON.parse works
-      );
-      spokenLanguages = JSON.parse(
-        movie.spoken_languages
-          .replace(/'/g, '"')
-
-
-      );
-      prodCompany = JSON.parse(
-        movie.production_companies
-          .replace(/'/g, '"')
-
-
-      );
-    } catch (err) {
-      parsedGenres = [];
-      spokenLanguages = [];
-      prodCompany = [];
-    }
-
+    
  
   res.json({
     id: String(movie.movieId || movie.id),
     title: movie.title,
-    genres: parsedGenres, 
-    languages: spokenLanguages,
-    company: prodCompany,
+    genres: movie.genres, 
+    languages: movie.spoken_languages,
+    company: movie.production_companies,
     release_date: movie.release_date, 
     _links: {
       self: { href: `/movies/${movie.movieId}` },
@@ -123,7 +86,6 @@ app.get('/movies/:id', (req, res) => {
     description: String(movie.overview),
   });
 });
-
 
 
 // Start the server

@@ -66,7 +66,11 @@ window.addEventListener('load', () => {
         }));
         
 
-        window.location.href = `/movie.html?id=${movie.id}`;
+       /* window.location.href = movie._links?.ui?.href /|| `/movie.html?id=${movie.id}`;*/
+       /*window.location.href = movie._links?.self?.href*/
+       window.location.href = movie._links?.ui?.href ;
+ 
+
 
         
 

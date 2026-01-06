@@ -28,7 +28,7 @@ fs.readFile('./movies.json', 'utf8', (err, data) => {
 
   movies = rawMovies.map(movie => {
     return {
-      
+      ...movie,
       movieId: String(movie.movieId || movie.id),
       release_date: String(movie.release_date),
       title: movie.title,
@@ -54,7 +54,9 @@ app.get('/movies', (req, res) => {
       company: movie.production_companies, 
       release_date: movie.release_date, 
       _links: {
-        self: { href: `/movies/${movie.movieId || movie.id}` }
+        self: { href: `/movies/${movie.movieId || movie.id}` },
+        ui: { href: `/movie.html?id=${movie.id || movie.movieId}` },
+        
       },
       description: String(movie.overview),
     };
@@ -81,7 +83,9 @@ app.get('/movies/:id', (req, res) => {
     release_date: movie.release_date, 
     _links: {
       self: { href: `/movies/${movie.movieId}` },
-      list: { href: '/movies' }
+      ui: { href: `/movie.html?id=${movie.id || movie.movieId}` },
+      list: { href: '/movies' },
+      
     },
     description: String(movie.overview),
   });

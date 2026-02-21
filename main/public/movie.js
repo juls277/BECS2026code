@@ -1,165 +1,125 @@
 
+
 const urlParams = new URLSearchParams(window.location.search);
-const movieId = urlParams.get("id");
-const startTime = Date.now();
+const movieId = urlParams.get("id"); // string from URL
+const detailsStartTime = Date.now();
 
-function updateSessionOnLoad(movieId) {
-  const session = JSON.parse(localStorage.getItem("sessionHistory")) || {
-    visitedItems: [],
-    timeSpent: {},
-    transitions: {}
-  };
 
-  
-  /*
-  const idString = String(movieId);
-  if (!session.visitedItems.length || String(session.visitedItems[session.visitedItems.length - 1]) !== idString) {
-    session.visitedItems.push(idString);
-  }
-  */
-
-  localStorage.setItem("sessionHistory", JSON.stringify(session));
-  console.log("updatedSessionOnLoad:", session.visitedItems.slice(-5));
+//session
+function readSession() {
+  return (
+    JSON.parse(localStorage.getItem("sessionHistory")) || {
+      visitedItems: [],
+      timeSpent: {},
+      transitions: {}
+    }
+  );
 }
 
-fetch(`/movies/${movieId}`)
-  .then(res => res.json())
-  .then(movie => {
-    const genreNames = movie.genres?.length
-      ? movie.genres.map(g => g.name).join(", ")
-      : "N/A";
-    const langNames = movie.languages?.length
-      ? movie.languages.map(g => g.name).join(", ")
-      : "N/A";
-    const compNames = movie.company?.length
-      ? movie.company.map(g => g.name).join(", ")
-      : "N/A";
-
-    document.getElementById("movie-title").textContent = movie.title || "Untitled";
-    document.getElementById("movie-genres").textContent = `Genres: ${genreNames}`;
-    document.getElementById("movie-id").textContent = `Movie ID: ${movie.id}`;
-    document.getElementById("movie-overview").textContent = movie.description || "No description available";
-    document.getElementById("movie-release").textContent = `Release Date: ${movie.release_date || "Unknown"}`;
-    document.getElementById("languages").textContent = `Languages: ${langNames || "Unknown"}`;
-    document.getElementById("movie-company").textContent = `Production Company: ${compNames || "Unknown"}`;
-  })
-  .catch(error => {
-    console.error("Error fetching movie details:", error);
-  });
-
-window.addEventListener("DOMContentLoaded", () => {
-  updateSessionOnLoad(movieId);
-  getMovies();
-});
-
-// when user leaves or closes the page
-window.addEventListener("beforeunload", () => {
-  const secondsSpent = Math.floor((Date.now() - startTime) / 1000);
-
-  const session = JSON.parse(localStorage.getItem("sessionHistory")) || {
-    visitedItems: [],
-    timeSpent: {}
-  };
-
-  session.timeSpent[`item_${movieId}`] =
-    (session.timeSpent[`item_${movieId}`] || 0) + secondsSpent;
-
+function writeSession(session) {
   localStorage.setItem("sessionHistory", JSON.stringify(session));
-  console.log("Session saved (with time):", session);
+}
+
+function addVisited(movieIdToAdd) {
+  const session = readSession();
+  session.visitedItems = session.visitedItems || [];
+
+  const idStr = String(movieIdToAdd);
+
+  if (!session.visitedItems.map(String).includes(idStr)) {
+    session.visitedItems.push(idStr);
+  }
+
+  writeSession(session);
+  return session;
+}
+
+// we recors current movie as visited
+function updateSessionOnLoad(currentMovieId) {
+  const session = addVisited(currentMovieId);
+  console.log("[SESSION] visitedItems (last 20 ids):", session.visitedItems.slice(-30));
+  console.log("[SESSION] current movieId:", String(currentMovieId));
+}
+
+//render movie
+function normalizeGenreNames(genres) {
+  if (!Array.isArray(genres)) return [];
+  return genres
+    .map(g => (typeof g === "string" ? g : g?.name))
+    .filter(Boolean)
+    .map(s => String(s).toLowerCase().trim());
+}
+
+function normalizeNameList(list) {
+  if (!Array.isArray(list)) return "N/A";
+  const names = list
+    .map(x => (typeof x === "string" ? x : x?.name))
+    .filter(Boolean);
+  return names.length ? names.join(", ") : "N/A";
+}
+
+function loadMovieDetails() {
+  fetch(`/movies/${movieId}`)
+    .then(res => res.json())
+    .then(movie => {
+      document.getElementById("movie-title").textContent = movie.title || "Untitled";
+      document.getElementById("movie-genres").textContent = `Genres: ${normalizeNameList(movie.genres)}`;
+      document.getElementById("movie-id").textContent = `Movie ID: ${movie.id}`;
+      document.getElementById("movie-overview").textContent = movie.description || "No description available";
+      document.getElementById("movie-release").textContent = `Release Date: ${movie.release_date || "Unknown"}`;
+      document.getElementById("languages").textContent = `Languages: ${normalizeNameList(movie.languages)}`;
+      document.getElementById("movie-company").textContent = `Production Company: ${normalizeNameList(movie.company)}`;
+
+      console.log("[DETAILS] Loaded movie:", { id: String(movie.id), title: movie.title });
+    })
+    .catch(error => {
+      console.error("[DETAILS] Error fetching movie details:", error);
+    });
+}
+
+// track time
+window.addEventListener("beforeunload", () => {
+  const secondsSpent = Math.floor((Date.now() - detailsStartTime) / 1000);
+  const session = readSession();
+
+  session.timeSpent = session.timeSpent || {};
+  const idStr = String(movieId);
+
+  session.timeSpent[`item_${idStr}`] = (session.timeSpent[`item_${idStr}`] || 0) + secondsSpent;
+
+  writeSession(session);
+
+  console.log("[TIME] Saved time spent:", {
+    movieId: idStr,
+    secondsSpentThisVisit: secondsSpent,
+    totalSecondsForMovie: session.timeSpent[`item_${idStr}`]
+  });
 });
 
-// =======================
-// RECOMMENDATION LOGIC
-// =======================
+//recommendation logic
 
 let allMoviesCache = null;
 
 async function getAllMoviesCached() {
-  if (allMoviesCache) return allMoviesCache;
+  if (allMoviesCache) {
+    console.log("[CACHE] /movies served from memory cache:", allMoviesCache.length);
+    return allMoviesCache;
+  }
 
+  console.log("[CACHE] Fetching /movies ...");
   const res = await fetch("/movies");
   if (!res.ok) throw new Error(`HTTP error ${res.status}`);
 
   const data = await res.json();
-  allMoviesCache = data; // cache in memory
+  allMoviesCache = data;
+
+  console.log("[CACHE] /movies fetched and cached:", data.length);
   return data;
 }
 
-async function getMovies() {
-  console.time("getMovies total");
-
-  const session = JSON.parse(localStorage.getItem("sessionHistory")) || {
-    visitedItems: [],
-    timeSpent: {}
-  };
-
-  const watchedIds = (session.visitedItems || []).map(String);
-  console.log("last 5 watched ids:", watchedIds.slice(-5));
-
-  try {
-    console.time("fetch & cache /movies");
-    const allMovies = await getAllMoviesCached();
-    console.timeEnd("fetch & cache /movies");
-
-    console.time("split watched/unwatched + map");
-
-    
-    const movieMap = new Map(
-      allMovies.map(m => [String(m.id || m.movieId), m])
-    );
-
-    const unWatchedMovies = allMovies.filter(
-      m => !watchedIds.includes(String(m.id || m.movieId))
-    );
-
-    
-    const watchedMovies = watchedIds.map(id => movieMap.get(String(id))).filter(Boolean);
-
-    console.timeEnd("split watched/unwatched + map");
-
-    console.time("generateRecommendation");
-    const topRecommendations = generateRecommendation(
-      watchedMovies,
-      unWatchedMovies,
-      genreSimilarity,
-      10,
-      session,
-      movieMap 
-    );
-    console.timeEnd("generateRecommendation");
-
-    console.time("renderRecommendations");
-    renderRecommendations(topRecommendations);
-    console.timeEnd("renderRecommendations");
-
-    console.timeEnd("getMovies total");
-  } catch (err) {
-    console.log("couldnt fetch", err);
-    console.timeEnd("getMovies total");
-  }
-}
-
-function renderRecommendations(recs) {
-  const list = document.getElementById("movie-links");
-  if (!list) return;
-
-  list.innerHTML = "";
-
-  recs.slice(0, 5).forEach(rec => {
-    const li = document.createElement("li");
-    const a = document.createElement("a");
-
-    a.textContent = rec.movie.title;
-    a.href = rec.movie._links?.ui?.href ;
-
-    li.appendChild(a);
-    list.appendChild(li);
-  });
-}
-
 function genreSimilarity(movieA, movieB) {
-  const genresA = (movieA.genres || []).map(g => (g.name || "").toLowerCase());
-  const genresB = (movieB.genres || []).map(g => (g.name || "").toLowerCase());
+  const genresA = normalizeGenreNames(movieA.genres);
+  const genresB = normalizeGenreNames(movieB.genres);
 
   const setA = new Set(genresA);
   const setB = new Set(genresB);
@@ -171,68 +131,206 @@ function genreSimilarity(movieA, movieB) {
 }
 
 
-function getTop5FromLast10ByTime(movieMap, visitedItems, timeSpent) {
-  const last10 = (visitedItems || []).slice(-10).map(String);
+function getTop10SeedsFromLast20ByTime(movieMap, visitedItems, timeSpent) {
+  const MIN_SECONDS = 5;
+  const MAX_SECONDS = 10 * 60; // 600
 
-  // Deduplicate while preserving recency 
-  const uniqueLast10NewestFirst = [];
-  for (let i = last10.length - 1; i >= 0; i--) {
-    const id = last10[i];
-    if (!uniqueLast10NewestFirst.includes(id)) uniqueLast10NewestFirst.push(id);
-    if (uniqueLast10NewestFirst.length === 10) break;
+  // pick last 20 ids
+  const last20 = (visitedItems || []).slice(-20).map(String);
+
+  //  dedupe while preserving recency (newest kept)
+  const uniqueNewestFirst = [];
+  for (let i = last20.length - 1; i >= 0; i--) {
+    const id = last20[i];
+    if (!uniqueNewestFirst.includes(id)) uniqueNewestFirst.push(id);
+    if (uniqueNewestFirst.length === 20) break;
   }
+  const uniqueLast20 = uniqueNewestFirst.reverse();
 
-  const uniqueLast10 = uniqueLast10NewestFirst.reverse();
-
-  const candidates = uniqueLast10
+  
+  const candidates = uniqueLast20
     .map(id => movieMap.get(String(id)))
     .filter(Boolean);
 
-  return candidates
+  
+  const scored = candidates
     .map(movie => {
       const id = String(movie.id || movie.movieId);
       return { movie, seconds: timeSpent?.[`item_${id}`] || 0 };
     })
-    .sort((a, b) => b.seconds - a.seconds)
-    .slice(0, 5)
-    .map(x => x.movie);
+    .filter(x => x.seconds > MIN_SECONDS && x.seconds < MAX_SECONDS)
+    .sort((a, b) => b.seconds - a.seconds);
+
+  // pick top 10 
+  const top10 = scored.slice(0, 10);
+
+  console.log("[REC INPUT] last20 watched (raw):", last20);
+  console.log("[REC INPUT] last20 watched (deduped):", uniqueLast20);
+
+  console.log(
+    "[REC INPUT] Candidate pool from last20 (time constrained):",
+    scored.map(x => ({
+      id: String(x.movie.id || x.movie.movieId),
+      title: x.movie.title,
+      seconds: x.seconds
+    }))
+  );
+
+  console.log(
+    "[REC INPUT] TOP 10 seeds picked (by time, constrained):",
+    top10.map(x => ({
+      id: String(x.movie.id || x.movie.movieId),
+      title: x.movie.title,
+      seconds: x.seconds
+    }))
+  );
+
+  return top10.map(x => x.movie);
 }
 
-function generateRecommendation(
-  watchedMovies,
-  unWatchedMovies,
-  similarFn,
-  topN,
-  session,
-  movieMap
-) {
-  const lastWatched = getTop5FromLast10ByTime(
+function generateRecommendation(unWatchedMovies, session, movieMap, topN = 20) {
+  const seeds = getTop10SeedsFromLast20ByTime(
     movieMap,
     session.visitedItems || [],
     session.timeSpent || {}
   );
 
-  console.log("Top 5 from last 10 by time:", lastWatched);
-
-  if (!unWatchedMovies.length || !lastWatched.length) {
-    console.warn("Not enough data to generate recommendations.");
+  if (!unWatchedMovies.length || !seeds.length) {
+    console.warn("[REC] Not enough data to generate recommendations.", {
+      unWatchedCount: unWatchedMovies.length,
+      seedCount: seeds.length
+    });
     return [];
   }
+
+  console.log("[REC] Unwatched candidates:", unWatchedMovies.length);
+  console.log("[REC] Seed count used for similarity:", seeds.length);
 
   const recommendations = [];
 
   for (const unwatched of unWatchedMovies) {
-    let totalSim = 0;
+    let weightedSum = 0;
+    let totalWeight = 0;
 
-    for (const watched of lastWatched) {
-      totalSim += similarFn(unwatched, watched);
+    for (const watched of seeds) {
+      const watchedId = String(watched.id || watched.movieId);
+
+      // seconds user spent on this seed
+      const seconds = session.timeSpent?.[`item_${watchedId}`] || 0;
+
+      
+      const weight = Math.min(seconds, 10 * 60);
+
+      const sim = genreSimilarity(unwatched, watched);
+
+      weightedSum += sim * weight;
+      totalWeight += weight;
     }
 
-    const avgSim = totalSim / lastWatched.length;
-    recommendations.push({ movie: unwatched, score: avgSim });
+    // weighted average similarity
+    const score = totalWeight ? (weightedSum / totalWeight) : 0;
+
+    recommendations.push({ movie: unwatched, score });
   }
 
-  recommendations.sort((a, b) => b.score - a.score);
-  console.log("recommended", recommendations.slice(0, topN));
+  // Sort by score descending
+  recommendations.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    //return Math.random() - 0.5; // tie-break
+  });
+
+  console.log(
+    "[REC OUTPUT] Top recommendations (with weighted score):",
+    recommendations.slice(0, topN).map(r => ({
+      id: String(r.movie.id || r.movie.movieId),
+      title: r.movie.title,
+      score: Number(r.score.toFixed(4))
+    }))
+  );
+
   return recommendations.slice(0, topN);
 }
+
+ 
+
+function renderRecommendations(recs) {
+  const list = document.getElementById("movie-links");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  console.log(
+    "[UI] Rendering recommendations (top 5):",
+    recs.slice(0, 5).map(r => ({
+      id: String(r.movie.id || r.movie.movieId),
+      title: r.movie.title,
+      score: Number((r.score ?? 0).toFixed(4))
+    }))
+  );
+
+  recs.slice(0, 5).forEach(rec => {
+    const movie = rec.movie;
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+
+    const idStr = String(movie.id || movie.movieId);
+
+    a.textContent = movie.title;
+    a.href = movie._links?.ui?.href;
+
+    // Mark as visited before navigation
+    a.addEventListener("click", () => {
+      console.log("[CLICK] Recommendation clicked:", { id: idStr, title: movie.title });
+      addVisited(idStr);
+    });
+
+    li.appendChild(a);
+    list.appendChild(li);
+  });
+}
+
+async function getMoviesAndRecommend() {
+  console.time("getMovies total");
+
+  // Ensure current is visited (safe + deduped)
+  addVisited(movieId);
+
+  const session = readSession();
+
+  console.log("[SESSION] visitedItems (last 20 ids):", (session.visitedItems || []).slice(-20));
+  console.log("[SESSION] timeSpent keys:", Object.keys(session.timeSpent || {}).length);
+
+  const watchedSet = new Set((session.visitedItems || []).map(String));
+  const currentIdStr = String(movieId);
+
+  try {
+    const allMovies = await getAllMoviesCached();
+
+    const movieMap = new Map(allMovies.map(m => [String(m.id || m.movieId), m]));
+
+    //  not visited AND not current movie
+    const unWatchedMovies = allMovies.filter(m => {
+      const idStr = String(m.id || m.movieId);
+      return idStr !== currentIdStr && !watchedSet.has(idStr);
+    });
+
+    console.log("[REC] watchedSet size:", watchedSet.size);
+    console.log("[REC] currentIdStr:", currentIdStr);
+    console.log("[REC] unWatchedMovies size:", unWatchedMovies.length);
+
+    const topRecommendations = generateRecommendation(unWatchedMovies, session, movieMap, 20);
+    renderRecommendations(topRecommendations);
+
+    console.timeEnd("getMovies total");
+  } catch (err) {
+    console.error("[REC] couldnt fetch /movies or generate recs:", err);
+    console.timeEnd("getMovies total");
+  }
+}
+
+//start
+window.addEventListener("DOMContentLoaded", () => {
+  updateSessionOnLoad(movieId);
+  loadMovieDetails();
+  getMoviesAndRecommend();
+});

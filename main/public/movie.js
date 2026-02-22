@@ -219,7 +219,8 @@ function generateRecommendation(unWatchedMovies, session, movieMap, topN = 20) {
       const seconds = session.timeSpent?.[`item_${watchedId}`] || 0;
 
       
-      const weight = Math.min(seconds, 10 * 60);
+    const capped = Math.min(seconds, 10 * 60);
+    const weight = Math.log1p(capped);
 
       const sim = genreSimilarity(unwatched, watched);
 
@@ -236,7 +237,7 @@ function generateRecommendation(unWatchedMovies, session, movieMap, topN = 20) {
   // Sort by score descending
   recommendations.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
-    //return Math.random() - 0.5; // tie-break
+    return Math.random() - 0.5; 
   });
 
   console.log(
@@ -261,14 +262,14 @@ function renderRecommendations(recs) {
 
   console.log(
     "[UI] Rendering recommendations (top 5):",
-    recs.slice(0, 5).map(r => ({
+    recs.slice(0, 10).map(r => ({
       id: String(r.movie.id || r.movie.movieId),
       title: r.movie.title,
       score: Number((r.score ?? 0).toFixed(4))
     }))
   );
 
-  recs.slice(0, 5).forEach(rec => {
+  recs.slice(0, 10).forEach(rec => {
     const movie = rec.movie;
     const li = document.createElement("li");
     const a = document.createElement("a");
@@ -296,6 +297,24 @@ async function getMoviesAndRecommend() {
   addVisited(movieId);
 
   const session = readSession();
+  const MIN_CLICKS_FOR_RECS = 20;
+
+const uniqueVisitedCount = new Set((session.visitedItems || []).map(String)).size;
+
+if (uniqueVisitedCount < MIN_CLICKS_FOR_RECS) {
+  console.log(
+    `[REC] Not generating recommendations yet: need ${MIN_CLICKS_FOR_RECS} unique clicks, have ${uniqueVisitedCount}.`
+  );
+
+  
+  const list = document.getElementById("movie-links");
+  if (list) {
+    list.innerHTML = `<li style="color:#888;">Watch at least ${MIN_CLICKS_FOR_RECS} movies to get recommendations (currently ${uniqueVisitedCount}).</li>`;
+  }
+
+  console.timeEnd("getMovies total");
+  return;
+}
 
   console.log("[SESSION] visitedItems (last 20 ids):", (session.visitedItems || []).slice(-20));
   console.log("[SESSION] timeSpent keys:", Object.keys(session.timeSpent || {}).length);

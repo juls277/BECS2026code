@@ -11,30 +11,25 @@
     <a href="/">← Back to list</a>
   </div>
 
-  <div class="container">
-    <!-- Left column -->
-    <div class="movie-info">
-      <h1 id="movie-title">Loading...</h1>
-      <p id="movie-genres"></p>
-      <p id="movie-id"></p>
-      <p id="movie-overview"></p>
-      <p id="movie-release"></p>
-      <p id="languages"></p>
-      <p id="movie-company"></p>
-      <p id="movie-country"></p>
-      <p id="movie-date"></p>
-
-    </div>
-
-    <!-- Right column -->
-    <div class="side-panel">
-      <h2>You might also like: </h2>
-      <ul id="movie-links">
-        <li><a href="#">Official Homepage</a></li>
-        <li><a href="#">IMDB</a></li>
-      </ul>
-    </div>
+ <div class="container">
+  <div class="movie-info">
+    <h1 id="movie-title">Loading...</h1>
+    <p id="movie-genres"></p>
+    <p id="movie-id"></p>
+    <p id="movie-overview"></p>
+    <p id="movie-release"></p>
+    <p id="languages"></p>
+    <p id="movie-company"></p>
+    <p id="movie-country"></p>
+    <p id="movie-date"></p>
   </div>
+
+ 
+  <div class="recs-panel">
+    <h2>You might also like:</h2>
+    <div id="movie-links" class="recs-grid"></div>
+  </div>
+</div>
 
   <script src="movie.js"></script>
 </body>

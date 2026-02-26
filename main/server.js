@@ -3,7 +3,8 @@ const fs = require('fs');
 const app = express();
 const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 8080;
+const MOVIES_PATH = path.join(__dirname, 'movies.json');
 
 function parseListField(raw) {
   if (!raw) return [];
@@ -18,7 +19,7 @@ function parseListField(raw) {
 // Load movies from JSON file
 let movies = [];
 
-fs.readFile('./movies.json', 'utf8', (err, data) => {
+fs.readFile(MOVIES_PATH, 'utf8', (err, data) => {
   if (err) {
     console.error('Error reading movies.json');
     return;

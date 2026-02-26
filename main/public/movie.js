@@ -255,41 +255,63 @@ function generateRecommendation(unWatchedMovies, session, movieMap, topN = 20) {
  
 
 function renderRecommendations(recs) {
-  const list = document.getElementById("movie-links");
-  if (!list) return;
+  const container = document.getElementById("movie-links");
+  if (!container) return;
 
-  list.innerHTML = "";
-
-  console.log(
-    "[UI] Rendering recommendations (top 5):",
-    recs.slice(0, 10).map(r => ({
-      id: String(r.movie.id || r.movie.movieId),
-      title: r.movie.title,
-      score: Number((r.score ?? 0).toFixed(4))
-    }))
-  );
+  container.innerHTML = "";
 
   recs.slice(0, 10).forEach(rec => {
     const movie = rec.movie;
-    const li = document.createElement("li");
-    const a = document.createElement("a");
-
     const idStr = String(movie.id || movie.movieId);
 
-    a.textContent = movie.title;
-    a.href = movie._links?.ui?.href;
+    const card = document.createElement("div");
+    card.className = "rec-card";
 
-    // Mark as visited before navigation
-    a.addEventListener("click", () => {
-      console.log("[CLICK] Recommendation clicked:", { id: idStr, title: movie.title });
-      addVisited(idStr);
-    });
+    const titleRow = document.createElement("div");
+    titleRow.className = "rec-title-row";
 
-    li.appendChild(a);
-    list.appendChild(li);
+    const title = document.createElement("h3");
+    title.className = "rec-title";
+
+    const a = document.createElement("a");
+    a.textContent = movie.title || "Untitled";
+    a.href = movie._links?.ui?.href || `/movie.html?id=${idStr}`;
+    a.addEventListener("click", () => addVisited(idStr));
+
+    title.appendChild(a);
+
+    
+    const langNames = normalizeNameList(movie.languages);
+    const primaryLang = (langNames && langNames !== "N/A")
+      ? langNames.split(",")[0].trim()
+      : "N/A";
+
+    const chip = document.createElement("span");
+    chip.className = "rec-chip";
+    chip.textContent = primaryLang;
+
+    titleRow.appendChild(title);
+    titleRow.appendChild(chip);
+
+    const meta = document.createElement("p");
+    meta.className = "rec-meta";
+    meta.textContent = `Languages: ${langNames}`;
+
+    const desc = (movie.description || "No description available").trim();
+    const shortDesc = desc.length > 420 ? desc.slice(0, 420) + "…" : desc;
+
+    const p = document.createElement("p");
+    p.className = "rec-desc";
+    p.textContent = shortDesc;
+
+  
+    card.appendChild(titleRow);
+    card.appendChild(meta);
+    card.appendChild(p);
+
+    container.appendChild(card);
   });
 }
-
 async function getMoviesAndRecommend() {
   console.time("getMovies total");
 

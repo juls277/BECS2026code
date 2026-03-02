@@ -27,7 +27,9 @@ fs.readFile(MOVIES_PATH, 'utf8', (err, data) => {
   movies = JSON.parse(data);
   const rawMovies = JSON.parse(data);
 
-  movies = rawMovies.map(movie => {
+  
+
+  normalized = rawMovies.map(movie => {
     return {
       ...movie,
       movieId: String(movie.movieId || movie.id),
@@ -39,6 +41,7 @@ fs.readFile(MOVIES_PATH, 'utf8', (err, data) => {
       
     };
   });
+  movies = normalized.filter(m => hasValidGenres(m.genres));
 });
 
 // Endpoint: GET /movies — list all movies
@@ -91,6 +94,21 @@ app.get('/movies/:id', (req, res) => {
     description: String(movie.overview),
   });
 });
+
+function hasValidGenres(genres) {
+  if (!Array.isArray(genres) || genres.length === 0) return false;
+
+  
+  const names = genres
+    .map(g => (typeof g === "string" ? g : g?.name))
+    .filter(Boolean)
+    .map(s => String(s).trim().toLowerCase());
+
+  if (names.length === 0) return false;
+  if (names.every(n => n === "n/a" || n === "na" || n === "none")) return false;
+
+  return true;
+}
 
 
 // Start the server

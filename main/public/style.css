@@ -46,3 +46,32 @@
       font-size: 14px;
       text-align: center;
     }
+
+    #pagination {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      padding: 0 20px 24px;
+    }
+
+    #pagination button {
+      padding: 8px 12px;
+      border: 1px solid #444;
+      background: #222;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    #pagination button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    #pageInfo {
+      min-width: 130px;
+      text-align: center;
+      font-weight: 600;
+    }

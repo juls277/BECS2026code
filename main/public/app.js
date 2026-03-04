@@ -102,10 +102,19 @@ fetch("/movies")
 
     const prevBtn = document.getElementById("prevPage");
     const nextBtn = document.getElementById("nextPage");
+    const firstBtn = document.getElementById("firstPage");
+    const lastBtn = document.getElementById("lastPage");
+    const back10Btn = document.getElementById("back10");
+    const back50Btn = document.getElementById("back50");
+    const forward10Btn = document.getElementById("forward10");
+    const forward50Btn = document.getElementById("forward50");
     const pageInfo = document.getElementById("pageInfo");
 
-    if (!prevBtn || !nextBtn || !pageInfo) {
-      console.error("Pagination elements missing: #prevPage #nextPage #pageInfo");
+    if (
+      !prevBtn || !nextBtn || !firstBtn || !lastBtn ||
+      !back10Btn || !back50Btn || !forward10Btn || !forward50Btn || !pageInfo
+    ) {
+      console.error("Pagination elements missing");
       return;
     }
 
@@ -184,14 +193,26 @@ fetch("/movies")
 
       // update UI
       pageInfo.textContent = `Page ${currentPage} / ${totalPages}`;
+      firstBtn.disabled = currentPage === 1;
+      lastBtn.disabled = currentPage === totalPages;
+      back10Btn.disabled = currentPage === 1;
+      back50Btn.disabled = currentPage === 1;
       prevBtn.disabled = currentPage === 1;
       nextBtn.disabled = currentPage === totalPages;
+      forward10Btn.disabled = currentPage === totalPages;
+      forward50Btn.disabled = currentPage === totalPages;
 
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
+    firstBtn.addEventListener("click", () => renderPage(1));
+    lastBtn.addEventListener("click", () => renderPage(totalPages));
+    back10Btn.addEventListener("click", () => renderPage(currentPage - 10));
+    back50Btn.addEventListener("click", () => renderPage(currentPage - 50));
     prevBtn.addEventListener("click", () => renderPage(currentPage - 1));
     nextBtn.addEventListener("click", () => renderPage(currentPage + 1));
+    forward10Btn.addEventListener("click", () => renderPage(currentPage + 10));
+    forward50Btn.addEventListener("click", () => renderPage(currentPage + 50));
 
     
     renderPage(currentPage);
